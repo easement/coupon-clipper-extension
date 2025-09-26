@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Coupon Clipper",
+  "version": "1.0",
+  "description": "Automatically clip coupons on grocery store websites",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.kroger.com/*",
+    "*://*.ralphs.com/*",
+    "*://*.fredmeyer.com/*",
+    "*://*.kingsupers.com/*",
+    "*://*.smithsfoodanddrug.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Clip Coupons",
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.kroger.com/*/coupons*",
+        "*://*.ralphs.com/*/coupons*",
+        "*://*.fredmeyer.com/*/coupons*",
+        "*://*.kingsupers.com/*/coupons*",
+        "*://*.smithsfoodanddrug.com/*/coupons*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

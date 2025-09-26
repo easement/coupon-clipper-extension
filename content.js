@@ -68,8 +68,12 @@
         clipButtons.forEach((button, index) => {
             const buttonText = button.textContent.trim().toLowerCase();
             
-            if (buttonText.includes('clipped') || buttonText.includes('added') || buttonText.includes('unclip')) {
-                alreadyClippedCount++;
+            // Only click buttons that say exactly "clip" (nothing else)
+            if (buttonText !== 'clip') {
+                // Count non-clip buttons as already processed  
+                if (buttonText.includes('clipped') || buttonText.includes('added') || buttonText.includes('unclip')) {
+                    alreadyClippedCount++;
+                }
                 return;
             }
             

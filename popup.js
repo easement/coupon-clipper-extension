@@ -114,8 +114,12 @@ function clipAllCoupons() {
     clipButtons.forEach((button, index) => {
         const buttonText = button.textContent.trim().toLowerCase();
         
-        if (buttonText.includes('clipped') || buttonText.includes('added') || buttonText.includes('unclip')) {
-            alreadyClippedCount++;
+        // Only click buttons that say exactly "clip" (nothing else)
+        if (buttonText !== 'clip') {
+            // Count non-clip buttons as already processed
+            if (buttonText.includes('clipped') || buttonText.includes('added') || buttonText.includes('unclip')) {
+                alreadyClippedCount++;
+            }
             return;
         }
         
@@ -141,7 +145,7 @@ function clipAvailableCoupons() {
     const clipButtons = document.querySelectorAll('button[data-testid^="CouponActionButton-"]');
     const availableButtons = Array.from(clipButtons).filter(button => {
         const buttonText = button.textContent.trim().toLowerCase();
-        return buttonText === 'clip' && !buttonText.includes('unclip');
+        return buttonText === 'clip'; // Only exact match for "clip"
     });
     
     if (availableButtons.length === 0) {

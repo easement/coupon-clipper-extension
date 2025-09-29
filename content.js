@@ -95,26 +95,42 @@
                 }
             }
             
-            const delay = isKrogerSite ? index * 300 : index * 500; // CVS: 500ms = 2 per second
-            setTimeout(() => {
-                try {
-                    button.click();
-                    clippedCount++;
-                    
-                    // Show final notification after all buttons are processed
-                    if (index === clipButtons.length - 1) {
-                        setTimeout(() => {
-                            const actionText = isKrogerSite ? 'clipped' : 'sent to card';
-                            showNotification(
-                                `Complete! ${actionText} ${clippedCount} new coupons. ${alreadyClippedCount} were already ${actionText}.`,
-                                'success'
-                            );
-                        }, 1000);
+            if (isKrogerSite) {
+                // Kroger: Use fixed delay
+                setTimeout(() => {
+                    try {
+                        button.click();
+                        clippedCount++;
+                        
+                        // Show final notification after all buttons are processed
+                        if (index === clipButtons.length - 1) {
+                            setTimeout(() => {
+                                showNotification(
+                                    `Complete! Clipped ${clippedCount} new coupons. ${alreadyClippedCount} were already clipped.`,
+                                    'success'
+                                );
+                            }, 1000);
+                        }
+                    } catch (error) {
+                        console.log(`Error clicking button ${index + 1}:`, error);
                     }
-                } catch (error) {
-                    console.log(`Error clicking button ${index + 1}:`, error);
+                }, index * 300);
+            } else {
+                // CVS: Process sequentially with confirmation
+                if (index === 0) {
+                    // Start the first CVS coupon immediately
+                    setTimeout(() => {
+                        try {
+                            button.click();
+                            clippedCount++;
+                            // Wait for confirmation and then process next coupon
+                            waitForCvsConfirmationAndContinueContent(clipButtons, index + 1, clippedCount, alreadyClippedCount);
+                        } catch (error) {
+                            console.log(`Error clicking button ${index + 1}:`, error);
+                        }
+                    }, 0);
                 }
-            }, delay);
+            }
         });
     }
     
@@ -200,4 +216,86 @@
     });
     
     observer.observe(document.body, { childList: true, subtree: true });
+    
+    // Helper function to wait for CVS confirmation and continue (content script version)
+    function waitForCvsConfirmationAndContinueContent(buttons, nextIndex, clippedCount, alreadyClippedCount) {
+        if (nextIndex >= buttons.length) {
+            // All buttons processed, show final notification
+            setTimeout(() => {
+                showNotification(
+                    `Complete! Sent to card ${clippedCount} new coupons. ${alreadyClippedCount} were already sent to card.`,
+                    'success'
+                );
+            }, 1000);
+            return;
+        }
+        
+        const button = buttons[nextIndex];
+        const buttonText = button.textContent.trim().toLowerCase();
+        
+        // Check if this button should be clicked
+        if (!buttonText.includes('send to card')) {
+            if (buttonText.includes('sent') || buttonText.includes('added') || buttonText.includes('on card')) {
+                alreadyClippedCount++;
+            }
+            // Skip this button and continue to next
+            waitForCvsConfirmationAndContinueContent(buttons, nextIndex + 1, clippedCount, alreadyClippedCount);
+            return;
+        }
+        
+        // Click the button
+        try {
+            button.click();
+            clippedCount++;
+            
+            // Wait for confirmation by monitoring button text changes
+            waitForCvsButtonConfirmationContent(button, () => {
+                // Confirmation received, process next button
+                waitForCvsConfirmationAndContinueContent(buttons, nextIndex + 1, clippedCount, alreadyClippedCount);
+            });
+        } catch (error) {
+            console.log(`Error clicking CVS button ${nextIndex + 1}:`, error);
+            // Continue to next button even if this one failed
+            waitForCvsConfirmationAndContinueContent(buttons, nextIndex + 1, clippedCount, alreadyClippedCount);
+        }
+    }
+    
+    // Helper function to wait for CVS button confirmation (content script version)
+    function waitForCvsButtonConfirmationContent(button, callback) {
+        const originalText = button.textContent.trim().toLowerCase();
+        let attempts = 0;
+        const maxAttempts = 4; // 2 seconds max wait
+        
+        const checkConfirmation = () => {
+            attempts++;
+            const currentText = button.textContent.trim().toLowerCase();
+            
+            // Check if button text changed (indicating success)
+            if (currentText !== originalText && 
+                (currentText.includes('sent') || currentText.includes('added') || currentText.includes('on card'))) {
+                callback();
+                return;
+            }
+            
+            // Check if button is disabled or has loading state
+            if (button.disabled || button.classList.contains('loading')) {
+                // Wait a bit more for the state to change
+                setTimeout(checkConfirmation, 500);
+                return;
+            }
+            
+            // Timeout after max attempts
+            if (attempts >= maxAttempts) {
+                console.log('CVS confirmation timeout, proceeding anyway');
+                callback();
+                return;
+            }
+            
+            // Check again in 500ms
+            setTimeout(checkConfirmation, 500);
+        };
+        
+        // Start checking after a short delay
+        setTimeout(checkConfirmation, 500);
+    }
 })();

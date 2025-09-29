@@ -119,38 +119,100 @@ function clipAllCoupons() {
     let clippedCount = 0;
     let alreadyClippedCount = 0;
     
-    clipButtons.forEach((button, index) => {
-        const buttonText = button.textContent.trim().toLowerCase();
-        
-        if (isKrogerSite) {
-            // Kroger logic: Only click buttons that say exactly "clip"
+    if (isKrogerSite) {
+        // Kroger: Use fixed delay for all buttons
+        clipButtons.forEach((button, index) => {
+            const buttonText = button.textContent.trim().toLowerCase();
+            
+            // Only click buttons that say exactly "clip"
             if (buttonText !== 'clip') {
                 if (buttonText.includes('clipped') || buttonText.includes('added') || buttonText.includes('unclip')) {
                     alreadyClippedCount++;
                 }
                 return;
             }
-        } else {
-            // CVS logic: Click "send to card" buttons
+            
+            setTimeout(() => {
+                try {
+                    button.click();
+                    clippedCount++;
+                } catch (error) {
+                    console.log(`Error clicking button ${index + 1}:`, error);
+                }
+            }, index * 300);
+        });
+    } else {
+        // CVS: Process sequentially with confirmation inline
+        // Process CVS coupons one by one with confirmation
+        let cvsIndex = 0;
+        const processCvsButton = () => {
+            if (cvsIndex >= clipButtons.length) return;
+            
+            const button = clipButtons[cvsIndex];
+            const buttonText = button.textContent.trim().toLowerCase();
+            
+            // Check if this button should be clicked
             if (!buttonText.includes('send to card')) {
-                // Check if already sent (CVS might change button text after sending)
                 if (buttonText.includes('sent') || buttonText.includes('added') || buttonText.includes('on card')) {
                     alreadyClippedCount++;
                 }
+                cvsIndex++;
+                setTimeout(processCvsButton, 100);
                 return;
             }
-        }
-        
-        const delay = isKrogerSite ? index * 300 : index * 500; // CVS: 500ms = 2 per second
-        setTimeout(() => {
+            
+            // Click the button
             try {
                 button.click();
                 clippedCount++;
+                
+                // Wait for confirmation before processing next button
+                const originalText = button.textContent.trim().toLowerCase();
+                let attempts = 0;
+                const maxAttempts = 4; // 2 seconds max wait
+                
+                const checkConfirmation = () => {
+                    attempts++;
+                    const currentText = button.textContent.trim().toLowerCase();
+                    
+                    // Check if button text changed (indicating success)
+                    if (currentText !== originalText && 
+                        (currentText.includes('sent') || currentText.includes('added') || currentText.includes('on card'))) {
+                        cvsIndex++;
+                        setTimeout(processCvsButton, 100);
+                        return;
+                    }
+                    
+                    // Check if button is disabled or has loading state
+                    if (button.disabled || button.classList.contains('loading')) {
+                        // Wait a bit more for the state to change
+                        setTimeout(checkConfirmation, 500);
+                        return;
+                    }
+                    
+                    // Timeout after max attempts
+                    if (attempts >= maxAttempts) {
+                        console.log('CVS confirmation timeout, proceeding anyway');
+                        cvsIndex++;
+                        setTimeout(processCvsButton, 100);
+                        return;
+                    }
+                    
+                    // Check again in 500ms
+                    setTimeout(checkConfirmation, 500);
+                };
+                
+                // Start checking after a short delay
+                setTimeout(checkConfirmation, 500);
             } catch (error) {
-                console.log(`Error clicking button ${index + 1}:`, error);
+                console.log(`Error clicking CVS button ${cvsIndex + 1}:`, error);
+                cvsIndex++;
+                setTimeout(processCvsButton, 100);
             }
-        }, delay);
-    });
+        };
+        
+        processCvsButton();
+    }
     
     return {
         success: true,
@@ -187,12 +249,81 @@ function clipAvailableCoupons() {
         };
     }
     
-    availableButtons.forEach((button, index) => {
-        const delay = isKrogerSite ? index * 300 : index * 500; // CVS: 500ms = 2 per second
-        setTimeout(() => {
-            button.click();
-        }, delay);
-    });
+    if (isKrogerSite) {
+        // Kroger: Use fixed delay
+        availableButtons.forEach((button, index) => {
+            setTimeout(() => {
+                button.click();
+            }, index * 300);
+        });
+    } else {
+        // CVS: Process sequentially with confirmation inline
+        // Process CVS coupons one by one with confirmation
+        let cvsIndex = 0;
+        const processCvsButton = () => {
+            if (cvsIndex >= availableButtons.length) return;
+            
+            const button = availableButtons[cvsIndex];
+            const buttonText = button.textContent.trim().toLowerCase();
+            
+            // Check if this button should be clicked
+            if (!buttonText.includes('send to card')) {
+                cvsIndex++;
+                setTimeout(processCvsButton, 100);
+                return;
+            }
+            
+            // Click the button
+            try {
+                button.click();
+                
+                // Wait for confirmation before processing next button
+                const originalText = button.textContent.trim().toLowerCase();
+                let attempts = 0;
+                const maxAttempts = 4; // 2 seconds max wait
+                
+                const checkConfirmation = () => {
+                    attempts++;
+                    const currentText = button.textContent.trim().toLowerCase();
+                    
+                    // Check if button text changed (indicating success)
+                    if (currentText !== originalText && 
+                        (currentText.includes('sent') || currentText.includes('added') || currentText.includes('on card'))) {
+                        cvsIndex++;
+                        setTimeout(processCvsButton, 100);
+                        return;
+                    }
+                    
+                    // Check if button is disabled or has loading state
+                    if (button.disabled || button.classList.contains('loading')) {
+                        // Wait a bit more for the state to change
+                        setTimeout(checkConfirmation, 500);
+                        return;
+                    }
+                    
+                    // Timeout after max attempts
+                    if (attempts >= maxAttempts) {
+                        console.log('CVS confirmation timeout, proceeding anyway');
+                        cvsIndex++;
+                        setTimeout(processCvsButton, 100);
+                        return;
+                    }
+                    
+                    // Check again in 500ms
+                    setTimeout(checkConfirmation, 500);
+                };
+                
+                // Start checking after a short delay
+                setTimeout(checkConfirmation, 500);
+            } catch (error) {
+                console.log(`Error clicking CVS button ${cvsIndex + 1}:`, error);
+                cvsIndex++;
+                setTimeout(processCvsButton, 100);
+            }
+        };
+        
+        processCvsButton();
+    }
     
     return {
         success: true,

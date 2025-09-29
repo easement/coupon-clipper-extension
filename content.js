@@ -53,14 +53,23 @@
     }
     
     function clipAllCouponsFromContent() {
-        const clipButtons = document.querySelectorAll('button[data-testid^="CouponActionButton-"]');
+        // Check for Kroger-style buttons first
+        let clipButtons = document.querySelectorAll('button[data-testid^="CouponActionButton-"]');
+        let isKrogerSite = clipButtons.length > 0;
+        
+        // If no Kroger buttons found, check for CVS buttons
+        if (!isKrogerSite) {
+            clipButtons = document.querySelectorAll('send-to-card-action button.coupon-action, send-to-card-action button.sc-send-to-card-action');
+            isKrogerSite = false;
+        }
         
         if (clipButtons.length === 0) {
             showNotification('No coupon buttons found on this page', 'warning');
             return;
         }
         
-        showNotification(`Found ${clipButtons.length} coupons. Clipping...`, 'info');
+        const actionText = isKrogerSite ? 'Clipping' : 'Sending to card';
+        showNotification(`Found ${clipButtons.length} coupons. ${actionText}...`, 'info');
         
         let clippedCount = 0;
         let alreadyClippedCount = 0;
@@ -68,15 +77,25 @@
         clipButtons.forEach((button, index) => {
             const buttonText = button.textContent.trim().toLowerCase();
             
-            // Only click buttons that say exactly "clip" (nothing else)
-            if (buttonText !== 'clip') {
-                // Count non-clip buttons as already processed  
-                if (buttonText.includes('clipped') || buttonText.includes('added') || buttonText.includes('unclip')) {
-                    alreadyClippedCount++;
+            if (isKrogerSite) {
+                // Kroger logic: Only click buttons that say exactly "clip"
+                if (buttonText !== 'clip') {
+                    if (buttonText.includes('clipped') || buttonText.includes('added') || buttonText.includes('unclip')) {
+                        alreadyClippedCount++;
+                    }
+                    return;
                 }
-                return;
+            } else {
+                // CVS logic: Click "send to card" buttons
+                if (!buttonText.includes('send to card')) {
+                    if (buttonText.includes('sent') || buttonText.includes('added') || buttonText.includes('on card')) {
+                        alreadyClippedCount++;
+                    }
+                    return;
+                }
             }
             
+            const delay = isKrogerSite ? index * 300 : index * 500; // CVS: 500ms = 2 per second
             setTimeout(() => {
                 try {
                     button.click();
@@ -85,8 +104,9 @@
                     // Show final notification after all buttons are processed
                     if (index === clipButtons.length - 1) {
                         setTimeout(() => {
+                            const actionText = isKrogerSite ? 'clipped' : 'sent to card';
                             showNotification(
-                                `Complete! Clipped ${clippedCount} new coupons. ${alreadyClippedCount} were already clipped.`,
+                                `Complete! ${actionText} ${clippedCount} new coupons. ${alreadyClippedCount} were already ${actionText}.`,
                                 'success'
                             );
                         }, 1000);
@@ -94,7 +114,7 @@
                 } catch (error) {
                     console.log(`Error clicking button ${index + 1}:`, error);
                 }
-            }, index * 300);
+            }, delay);
         });
     }
     
@@ -155,7 +175,10 @@
     function init() {
         // Check if we're on a coupon page
         const url = window.location.href;
-        if (url.includes('coupon') || document.querySelector('button[data-testid^="CouponActionButton-"]')) {
+        const hasKrogerCoupons = document.querySelector('button[data-testid^="CouponActionButton-"]');
+        const hasCvsCoupons = document.querySelector('send-to-card-action button.coupon-action, send-to-card-action button.sc-send-to-card-action');
+        
+        if (url.includes('coupon') || url.includes('weekly-ad') || hasKrogerCoupons || hasCvsCoupons) {
             setTimeout(createFloatingButton, 1000); // Delay to ensure page is loaded
         }
     }

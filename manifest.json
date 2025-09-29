@@ -12,7 +12,8 @@
     "*://*.ralphs.com/*",
     "*://*.fredmeyer.com/*",
     "*://*.kingsupers.com/*",
-    "*://*.smithsfoodanddrug.com/*"
+    "*://*.smithsfoodanddrug.com/*",
+    "*://*.cvs.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -31,7 +32,9 @@
         "*://*.ralphs.com/*/coupons*",
         "*://*.fredmeyer.com/*/coupons*",
         "*://*.kingsupers.com/*/coupons*",
-        "*://*.smithsfoodanddrug.com/*/coupons*"
+        "*://*.smithsfoodanddrug.com/*/coupons*",
+        "*://*.cvs.com/*/coupons*",
+        "*://*.cvs.com/*/weekly-ad*"
       ],
       "js": ["content.js"],
       "run_at": "document_end"

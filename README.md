@@ -1,6 +1,6 @@
 # Coupon Clipper Chrome Extension
 
-Automatically clip coupons on grocery store websites with one click!
+Automatically clip digital coupons on store websites with one click!
 
 ## Features
 
@@ -13,6 +13,7 @@ Automatically clip coupons on grocery store websites with one click!
 
 ## Supported Stores
 
+- CVS
 - Kroger
 - Ralphs  
 - Fred Meyer

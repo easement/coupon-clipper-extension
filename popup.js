@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Check if we're on a supported site
-            const supportedSites = ['kroger.com', 'ralphs.com', 'fredmeyer.com', 'kingsupers.com', 'smithsfoodanddrug.com', 'cvs.com'];
+            const supportedSites = ['kroger.com', 'ralphs.com', 'fredmeyer.com', 'kingsupers.com', 'smithsfoodanddrug.com', 'cvs.com', 'walgreens.com'];
             const currentSite = new URL(tab.url).hostname;
             
             if (!supportedSites.some(site => currentSite.includes(site))) {
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
         if (tabs[0]) {
             const url = tabs[0].url;
-            const supportedSites = ['kroger.com', 'ralphs.com', 'fredmeyer.com', 'kingsupers.com', 'smithsfoodanddrug.com', 'cvs.com'];
+            const supportedSites = ['kroger.com', 'ralphs.com', 'fredmeyer.com', 'kingsupers.com', 'smithsfoodanddrug.com', 'cvs.com', 'walgreens.com'];
             const isSupported = supportedSites.some(site => url.includes(site));
             
             if (!isSupported) {
@@ -102,11 +102,19 @@ function clipAllCoupons() {
     // Check for Kroger-style buttons first
     let clipButtons = document.querySelectorAll('button[data-testid^="CouponActionButton-"]');
     let isKrogerSite = clipButtons.length > 0;
+    let isCvsSite = false;
+    let isWalgreensSite = false;
     
     // If no Kroger buttons found, check for CVS buttons
     if (!isKrogerSite) {
         clipButtons = document.querySelectorAll('send-to-card-action button.coupon-action, send-to-card-action button.sc-send-to-card-action');
-        isKrogerSite = false;
+        isCvsSite = clipButtons.length > 0;
+    }
+    
+    // If no CVS buttons found, check for Walgreens buttons
+    if (!isKrogerSite && !isCvsSite) {
+        clipButtons = document.querySelectorAll('button[id^="clip"]');
+        isWalgreensSite = clipButtons.length > 0;
     }
     
     if (clipButtons.length === 0) {
@@ -140,6 +148,28 @@ function clipAllCoupons() {
                     console.log(`Error clicking button ${index + 1}:`, error);
                 }
             }, index * 300);
+        });
+    } else if (isWalgreensSite) {
+        // Walgreens: Use 500ms delay (2 per second) to respect rate limiting
+        clipButtons.forEach((button, index) => {
+            const buttonText = button.textContent.trim().toLowerCase();
+            
+            // Only click buttons that say exactly "clip" (ignore "shop" buttons)
+            if (buttonText !== 'clip') {
+                if (buttonText.includes('clipped') || buttonText.includes('added') || buttonText.includes('unclip')) {
+                    alreadyClippedCount++;
+                }
+                return;
+            }
+            
+            setTimeout(() => {
+                try {
+                    button.click();
+                    clippedCount++;
+                } catch (error) {
+                    console.log(`Error clicking button ${index + 1}:`, error);
+                }
+            }, index * 500);
         });
     } else {
         // CVS: Process sequentially with confirmation inline
@@ -226,17 +256,27 @@ function clipAvailableCoupons() {
     // Check for Kroger-style buttons first
     let clipButtons = document.querySelectorAll('button[data-testid^="CouponActionButton-"]');
     let isKrogerSite = clipButtons.length > 0;
+    let isCvsSite = false;
+    let isWalgreensSite = false;
     
     // If no Kroger buttons found, check for CVS buttons
     if (!isKrogerSite) {
         clipButtons = document.querySelectorAll('send-to-card-action button.coupon-action, send-to-card-action button.sc-send-to-card-action');
-        isKrogerSite = false;
+        isCvsSite = clipButtons.length > 0;
+    }
+    
+    // If no CVS buttons found, check for Walgreens buttons
+    if (!isKrogerSite && !isCvsSite) {
+        clipButtons = document.querySelectorAll('button[id^="clip"]');
+        isWalgreensSite = clipButtons.length > 0;
     }
     
     const availableButtons = Array.from(clipButtons).filter(button => {
         const buttonText = button.textContent.trim().toLowerCase();
         if (isKrogerSite) {
             return buttonText === 'clip'; // Only exact match for "clip"
+        } else if (isWalgreensSite) {
+            return buttonText === 'clip'; // Only exact match for "clip" (ignore "shop" buttons)
         } else {
             return buttonText.includes('send to card'); // CVS "send to card" buttons
         }
@@ -255,6 +295,13 @@ function clipAvailableCoupons() {
             setTimeout(() => {
                 button.click();
             }, index * 300);
+        });
+    } else if (isWalgreensSite) {
+        // Walgreens: Use 500ms delay (2 per second) to respect rate limiting
+        availableButtons.forEach((button, index) => {
+            setTimeout(() => {
+                button.click();
+            }, index * 500);
         });
     } else {
         // CVS: Process sequentially with confirmation inline

@@ -14,6 +14,7 @@ Automatically clip digital coupons on store websites with one click!
 ## Supported Stores
 
 - CVS
+- Walgreens
 - Kroger
 - Ralphs  
 - Fred Meyer

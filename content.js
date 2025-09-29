@@ -56,11 +56,19 @@
         // Check for Kroger-style buttons first
         let clipButtons = document.querySelectorAll('button[data-testid^="CouponActionButton-"]');
         let isKrogerSite = clipButtons.length > 0;
+        let isCvsSite = false;
+        let isWalgreensSite = false;
         
         // If no Kroger buttons found, check for CVS buttons
         if (!isKrogerSite) {
             clipButtons = document.querySelectorAll('send-to-card-action button.coupon-action, send-to-card-action button.sc-send-to-card-action');
-            isKrogerSite = false;
+            isCvsSite = clipButtons.length > 0;
+        }
+        
+        // If no CVS buttons found, check for Walgreens buttons
+        if (!isKrogerSite && !isCvsSite) {
+            clipButtons = document.querySelectorAll('button[id^="clip"]');
+            isWalgreensSite = clipButtons.length > 0;
         }
         
         if (clipButtons.length === 0) {
@@ -68,7 +76,12 @@
             return;
         }
         
-        const actionText = isKrogerSite ? 'Clipping' : 'Sending to card';
+        let actionText = 'Clipping';
+        if (isCvsSite) {
+            actionText = 'Sending to card';
+        } else if (isWalgreensSite) {
+            actionText = 'Clipping';
+        }
         showNotification(`Found ${clipButtons.length} coupons. ${actionText}...`, 'info');
         
         let clippedCount = 0;
@@ -79,6 +92,14 @@
             
             if (isKrogerSite) {
                 // Kroger logic: Only click buttons that say exactly "clip"
+                if (buttonText !== 'clip') {
+                    if (buttonText.includes('clipped') || buttonText.includes('added') || buttonText.includes('unclip')) {
+                        alreadyClippedCount++;
+                    }
+                    return;
+                }
+            } else if (isWalgreensSite) {
+                // Walgreens logic: Only click buttons that say exactly "clip" (ignore "shop" buttons)
                 if (buttonText !== 'clip') {
                     if (buttonText.includes('clipped') || buttonText.includes('added') || buttonText.includes('unclip')) {
                         alreadyClippedCount++;
@@ -115,6 +136,26 @@
                         console.log(`Error clicking button ${index + 1}:`, error);
                     }
                 }, index * 300);
+            } else if (isWalgreensSite) {
+                // Walgreens: Use 500ms delay (2 per second) to respect rate limiting
+                setTimeout(() => {
+                    try {
+                        button.click();
+                        clippedCount++;
+                        
+                        // Show final notification after all buttons are processed
+                        if (index === clipButtons.length - 1) {
+                            setTimeout(() => {
+                                showNotification(
+                                    `Complete! Clipped ${clippedCount} new coupons. ${alreadyClippedCount} were already clipped.`,
+                                    'success'
+                                );
+                            }, 1000);
+                        }
+                    } catch (error) {
+                        console.log(`Error clicking button ${index + 1}:`, error);
+                    }
+                }, index * 500);
             } else {
                 // CVS: Process sequentially with confirmation
                 if (index === 0) {
@@ -193,8 +234,9 @@
         const url = window.location.href;
         const hasKrogerCoupons = document.querySelector('button[data-testid^="CouponActionButton-"]');
         const hasCvsCoupons = document.querySelector('send-to-card-action button.coupon-action, send-to-card-action button.sc-send-to-card-action');
+        const hasWalgreensCoupons = document.querySelector('button[id^="clip"]');
         
-        if (url.includes('coupon') || url.includes('weekly-ad') || hasKrogerCoupons || hasCvsCoupons) {
+        if (url.includes('coupon') || url.includes('weekly-ad') || hasKrogerCoupons || hasCvsCoupons || hasWalgreensCoupons) {
             setTimeout(createFloatingButton, 1000); // Delay to ensure page is loaded
         }
     }
